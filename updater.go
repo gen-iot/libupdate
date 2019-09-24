@@ -118,13 +118,14 @@ func (this *updaterImpl) doChild(ctx context.Context) {
 				return
 			}
 			log.Println("update daemon: download success!")
-			log.Println("update daemon: sending signal to parent!")
+			log.Println("update daemon: sending signal to parent...")
 			_, _ = comm.Write([]byte{0})
-			log.Println("update daemon: sending signal to parent!")
+			log.Println("update daemon: waiting parent exit...")
 			_, _ = comm.Read([]byte{0})
 			log.Println("update daemon: parent exit, now replace exe!")
 			// replace it
-			if recoverFn, err := this.performReplaceExe(newExeAddr); err != nil {
+			recoverFn, err := this.performReplaceExe(newExeAddr)
+			if err != nil {
 				log.Println("update daemon: replace failed err->", err)
 				if recoverFn != nil {
 					err := recoverFn()
@@ -137,12 +138,19 @@ func (this *updaterImpl) doChild(ctx context.Context) {
 					log.Println("update daemon: unnecessary perform recover")
 				}
 			}
-			err := this.rebootExe()
-			if err != nil {
-				log.Println("update daemon: reboot err->", err)
+			for {
+				if err := this.rebootExe(); err != nil {
+					log.Printf("update daemon: reboot err->%v, can recover=[%v]", err, recoverFn != nil)
+					if recoverFn != nil {
+						_ = recoverFn()
+						log.Println("update daemon: recover success")
+						continue
+					}
+				}
+				log.Println("update daemon:finish upgrade, exit")
+				os.Exit(0)
 			}
-			log.Println("update daemon:finish upgrade, exit")
-			os.Exit(0)
+
 		} else {
 			log.Println("update daemon: download task canceled!")
 		}
@@ -167,6 +175,7 @@ func (this *updaterImpl) rebootExe() error {
 	if err := os.Chmod(exeAddr, 755); err != nil {
 		return err
 	}
+	fmt.Println("start exe at:", exeAddr)
 	cmd := exec.Command(exeAddr)
 	return cmd.Start()
 }
@@ -248,8 +257,6 @@ func (this *updaterImpl) Execute(ctx context.Context) error {
 	if err := flagParser.Parse(os.Args[1:]); err != nil {
 		return errors.Wrap(err, "parse startup command line failed")
 	}
-	fmt.Println("is child ->", isChild)
-	time.Sleep(time.Second * 1)
 	if !isChild {
 		reader, err := this.doParent(ctx)
 		std.AssertError(err, "updater : parent failed!")
@@ -266,7 +273,7 @@ func (this *updaterImpl) Execute(ctx context.Context) error {
 			if os.IsTimeout(err) {
 				continue
 			}
-			log.Println("not timeout err???", err)
+			//log.Println("not timeout err???", err)
 			if !this.conf.GracefulExit && this.conf.UpdateReady != nil {
 				this.conf.UpdateReady()
 			}
