@@ -266,6 +266,8 @@ func (this *updaterImpl) Execute(ctx context.Context) error {
 	}
 	isChild := false
 	flagParser := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	flagParser.Usage = func() {
+	}
 	flagParser.BoolVar(&isChild, paramName, isChild, "is updater daemon")
 	if err := flagParser.Parse(os.Args[1:]); err != nil {
 		return errors.Wrap(err, "parse startup command line failed")
