@@ -137,6 +137,12 @@ func (this *updaterImpl) doChild(ctx context.Context) {
 					log.Println("update daemon: unnecessary perform recover")
 				}
 			}
+			err := this.rebootExe()
+			if err != nil {
+				log.Println("update daemon: reboot err->", err)
+			}
+			log.Println("update daemon:finish upgrade, exit")
+			os.Exit(0)
 		} else {
 			log.Println("update daemon: download task canceled!")
 		}
@@ -153,6 +159,17 @@ func (this *updaterImpl) doChild(ctx context.Context) {
 
 var defaultPolicy NamePolicy = &TimeNamePolicy{Format: "2006-1-2-15-04-05"}
 
+func (this *updaterImpl) rebootExe() error {
+	exeAddr := os.Args[0]
+	if len(this.conf.ExactlyExeAddr) != 0 {
+		exeAddr = this.conf.ExactlyExeAddr
+	}
+	if err := os.Chmod(exeAddr, 755); err != nil {
+		return err
+	}
+	cmd := exec.Command(exeAddr)
+	return cmd.Start()
+}
 func (this *updaterImpl) performDownload(ctx context.Context, session Session, newFileAddr *string) error {
 	namePolicy := this.conf.FileNamePolicy
 	if namePolicy == nil {
@@ -167,7 +184,7 @@ func (this *updaterImpl) performDownload(ctx context.Context, session Session, n
 		baseDir = this.conf.WorkDir
 	}
 	if info, err := os.Stat(baseDir); err != nil {
-		if err := os.MkdirAll(baseDir, 0777); err != nil {
+		if err := os.MkdirAll(baseDir, 0777|os.ModeDir); err != nil {
 			return errors.Wrap(err, "create download dir failed")
 		}
 	} else if !info.IsDir() {

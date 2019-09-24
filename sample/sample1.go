@@ -22,6 +22,7 @@ func main() {
 		UpdateReady:     nil,
 		GracefulExit:    false,
 		UseLink:         false,
+		WorkDir:         "download",
 	}
 	updater := libupdate.NewUpdater(config, repo1)
 	err := updater.Execute(context.Background())
