@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 )
 
@@ -30,11 +31,13 @@ type Config struct {
 type Updater interface {
 	Provider() Repo
 	Execute(ctx context.Context)
+	Active(enable bool)
 }
 
 type updaterImpl struct {
-	conf *Config
-	repo Repo
+	conf     *Config
+	repo     Repo
+	disabled int32
 }
 
 func NewUpdater(conf *Config, repo Repo) Updater {
@@ -43,6 +46,14 @@ func NewUpdater(conf *Config, repo Repo) Updater {
 		repo: repo,
 	}
 	return upd
+}
+
+func (this *updaterImpl) Active(enable bool) {
+	if enable {
+		atomic.StoreInt32(&this.disabled, 0)
+	} else {
+		atomic.StoreInt32(&this.disabled, 1)
+	}
 }
 
 var defaultPolicy NamePolicy = &TimeNamePolicy{Format: "2006-1-2-15-04-05"}
@@ -130,7 +141,11 @@ func (this *updaterImpl) Execute(ctx context.Context) {
 	for {
 		select {
 		case <-timer.C:
-			this.updateTask(ctx)
+			if atomic.LoadInt32(&this.disabled) != 1 {
+				this.updateTask(ctx)
+			} else {
+				log.Println("update: update have been disabled...")
+			}
 			timer.Reset(duration)
 		case <-ctx.Done():
 			return
