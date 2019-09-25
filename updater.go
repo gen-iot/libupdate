@@ -21,7 +21,7 @@ type Config struct {
 	// callback: update available, if not set, automatic download
 	UpdateAvailable func() (download bool)
 	// callback: download latest success
-	UpdateReady func(latestExeAddr string)
+	UpdateReady func(updater Updater, latestExeAddr string)
 	// where download file placed,if dir not exit, auto mk, default is ./download
 	DownloadDir string
 	// how download file name
@@ -130,7 +130,7 @@ func (this *updaterImpl) updateTask(ctx context.Context) {
 		log.Println("updater: download task canceled!")
 	}
 	if this.conf.UpdateReady != nil {
-		this.conf.UpdateReady(newExeAddr)
+		this.conf.UpdateReady(this, newExeAddr)
 	}
 }
 
