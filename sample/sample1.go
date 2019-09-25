@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/gen-iot/libupdate"
-	"log"
+	"github.com/gen-iot/std"
+	"os"
 	"time"
 )
 
@@ -15,21 +16,7 @@ var repo1 = &libupdate.SimpleRepo{
 }
 
 func main() {
-	config := &libupdate.Config{
-		Frequency:       5 * time.Second,
-		MainEntryPoint:  engine,
-		UpdateAvailable: updateAvailable,
-		UpdateReady:     nil,
-		GracefulExit:    false,
-		UseLink:         false,
-		WorkDir:         "download",
-	}
-	updater := libupdate.NewUpdater(config, repo1)
-	err := updater.Execute(context.Background())
-	log.Println("execute updater :", err)
-}
-
-func engine() {
+	go runUpdater()
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	for {
@@ -38,11 +25,32 @@ func engine() {
 	}
 }
 
+func runUpdater() {
+	config := &libupdate.Config{
+		Frequency:       5 * time.Second,
+		UpdateAvailable: updateAvailable,
+		UpdateReady:     updateReady,
+		DownloadDir:     "download",
+	}
+	updater := libupdate.NewUpdater(config, repo1)
+	updater.Execute(context.Background())
+}
+
 func updateAvailable() (download bool) {
-	fmt.Println("updateAvailable: download!")
+	fmt.Println("updateAvailable: do download!")
 	return true
 }
 
-func updateReady() {
-	fmt.Println("updateReady")
+func updateReady(latestExeAddr string) {
+	//fmt.Println("updateReady latestVerAddr:", latestExeAddr)
+	//input, err := os.Open(latestExeAddr)
+	//std.AssertError(err, "open latest exe failed")
+	//defer std.CloseIgnoreErr(input)
+	//dst, err := os.OpenFile("sample1.update", os.O_TRUNC|os.O_CREATE|os.O_WRONLY, 0755)
+	//std.AssertError(err, "create sample1.update failed")
+	//_, err = io.Copy(dst, input)
+	//std.AssertError(err, "copy file err")
+	err := os.Symlink(latestExeAddr, "sample1.update")
+	std.AssertError(err, "cant create sample1.update symbol link")
+	os.Exit(0)
 }

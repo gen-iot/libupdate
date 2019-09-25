@@ -2,6 +2,7 @@ package libupdate
 
 import (
 	"context"
+	"crypto/md5"
 	"encoding/json"
 	"fmt"
 	"github.com/gen-iot/std"
@@ -9,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 )
 
 type SimpleRepo struct {
@@ -27,7 +29,7 @@ type LatestResponse struct {
 	MD5     string `json:"md5" validate:"required"`
 }
 
-func (this *SimpleRepo) Check(ctx context.Context, session Session) (update bool, err error) {
+func (this *SimpleRepo) CheckUpdate(ctx context.Context, session Session) (update bool, err error) {
 	url := fmt.Sprintf("%s/%s/latest", this.BaseUrl, this.RepoName)
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -74,6 +76,21 @@ func (this *SimpleRepo) Download(ctx context.Context, session Session, writer io
 	_, err = io.Copy(writer, response.Body)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func (this *SimpleRepo) ValidateDownload(ctx context.Context, session Session, reader io.Reader) error {
+	ss := session.(*simpleSession)
+	hash := md5.New()
+	_, err := io.Copy(hash, reader)
+	if err != nil {
+		return err
+	}
+	md5Result := strings.ToLower(std.ArrToHexStrWithSp(hash.Sum(nil), ""))
+	realMd5 := strings.ToLower(ss.latest.MD5)
+	if strings.Compare(realMd5, md5Result) != 0 {
+		return errors.Errorf("md5 should be %s , not %s", realMd5, md5Result)
 	}
 	return nil
 }
