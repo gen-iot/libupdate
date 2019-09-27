@@ -56,7 +56,7 @@ func (this *SimpleRepo) CheckUpdate(ctx context.Context, session Session) (updat
 		return false, err
 	}
 	session.(*simpleSession).latest = obj
-	return true, nil
+	return strings.Compare(obj.Version, this.CurrentVer) != 0, nil
 }
 
 func (this *SimpleRepo) Download(ctx context.Context, session Session, writer io.Writer) error {
