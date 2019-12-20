@@ -14,9 +14,9 @@ import (
 )
 
 type SimpleRepo struct {
-	BaseUrl    string
-	CurrentVer string
-	RepoName   string
+	BaseUrl    string `json:"baseUrl"`
+	CurrentVer string `json:"currentVersion"`
+	RepoName   string `json:"repoName"`
 }
 
 type simpleSession struct {
