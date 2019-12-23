@@ -106,7 +106,6 @@ func (this *updaterImpl) updateTask(ctx context.Context) {
 	session := this.repo.NewSession()
 	defer this.repo.FreeSession(session)
 	update, err := this.repo.CheckUpdate(ctx, session)
-
 	if err != nil {
 		log.Println("updater: check update failed,err->", err)
 		return
@@ -115,19 +114,19 @@ func (this *updaterImpl) updateTask(ctx context.Context) {
 		log.Println("updater: no update available :D")
 		return
 	}
-	shouldDownload := this.conf.UpdateAvailable == nil
-	if !shouldDownload {
+	shouldDownload := false
+	if this.conf.UpdateAvailable != nil {
 		shouldDownload = this.conf.UpdateAvailable()
 	}
+	if !shouldDownload {
+		log.Println("updater: shouldDownload=false, download task canceled!")
+		return
+	}
 	newExeAddr := ""
-	if shouldDownload {
-		err = this.performDownload(ctx, session, &newExeAddr)
-		if err != nil {
-			log.Println("updater: download failed,err->", err)
-			return
-		}
-	} else {
-		log.Println("updater: download task canceled!")
+	err = this.performDownload(ctx, session, &newExeAddr)
+	if err != nil {
+		log.Println("updater: download failed,err->", err)
+		return
 	}
 	if this.conf.UpdateReady != nil {
 		this.conf.UpdateReady(this, newExeAddr)
